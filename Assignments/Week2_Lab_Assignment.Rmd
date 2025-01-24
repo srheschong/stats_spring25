@@ -1,0 +1,42 @@
+---
+title: "Week2_Lab_Assignment"
+author: "Summer Heschong"
+date: "2025-01-24"
+output: pdf_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup}
+library(here)
+library(tidyverse)
+library(viridis)
+library(dplyr)
+
+crab_data <- read.csv('Data/Raw/pie_crab.csv')
+```
+
+```{r, 1 Measures of location and data spread}
+#a. What is the mean fiddler crab carapace size?
+
+mean(crab_data$size)
+#The mean fiddler crab carapace size is 14.66
+
+#b. What is the median fiddler crab carapace size?
+
+median(crab_data$size)
+#The median fiddler crab carapace size is 14.44
+
+#c. What is the standard deviation in fiddler crab carapace size? 
+
+sd(crab_data$size)
+#The standard deviation in fiddler crab carapace size is 3.5
+```
+```{r, 2 Creating Histograms}
+#a. Create histogram of fiddler crab carapace size
+
+
+
+
+
+
