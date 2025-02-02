@@ -1,0 +1,122 @@
+---
+title: "Week3_Lab_Assignment"
+author: "Summer Heschong"
+date: "2025-02-04"
+output: pdf_document
+---
+
+#Setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(moments)
+```
+#(1) Discrete Probability Distributions
+
+##a. Say you flip a fair, unweighted coin 20 times. What is the probability of obtaining 5 or fewer heads? 
+```{r Bernoulli Trial}
+#probability of 5 or fewer successes
+pbinom(q = 3, size = 20, prob = 0.50)
+```
+The probability of obtaining 5 or fewer heads is 0.12%
+
+##b. Now, you switch to using an unfair, weighted coin whose probability of landing on heads is 80%. If you flip the new, weighted coin 15 times, what is the probability of obtaining 10 or more heads? 
+```{r Bernoulli Trial Part 2}
+#calculate probability of 9 or fewer successes and subtract from 1 to get 
+#probability of 10 or more successes
+1 - pbinom(q = 9, size = 15, prob = 0.80)
+
+```
+The probability of obtaining 10 or more heads is 94%
+
+##c. What is the probability that only 6 whale strikes will occur this coming year? What is the probability that 6 or fewer whale strikes will occur this coming year?
+```{r Poisson Distribution}
+#probability of only 6 whale strikes
+dpois(x = 6, lambda = 12)
+
+#probability of 6 or fewer whale strikes
+ppois(q = 6, lambda = 12)
+
+```
+The probability of only 6 whale strikes occurring in the coming year is 2.5%
+The probability of 6 or fewer whale strikes is 4.6%
+
+#(2) Assessing Normality
+
+##a. Are weights of adult bison normally distributed?
+```{r Bison Data Visualization}
+#load in data frame
+bison_data_raw <- read_csv(here('Data/Raw/knz_bison.csv'))
+
+#create column displaying bison age, and filter for adult bison (age >3)
+bison_data <- bison_data_raw %>%
+  mutate(animal_age = rec_year - animal_yob) %>%
+  filter(animal_age > 3)
+
+#create histogram of adult bison weight
+#(number of bins = (2)2820^1/3 = 1880, bin width = 1380/1880 = 0.7340426)
+fig1 <- ggplot(data = bison_data, aes(x = animal_weight)) +
+  geom_histogram(bins = 1880, binwidth = 0.73) +
+  labs(title = 'Weight of Adult Bison', 
+       x = 'Weight', 
+       y = 'Frequency')
+print(fig1)
+
+#Create QQ plot of adult bison weight
+fig2 <- ggplot(data = bison_data, aes(sample = animal_weight)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Adult Bison Weight", 
+       x = 'Theoretical Normal Distribution',
+       y = 'Raw Bison Weight')
+print(fig2)
+
+```
+##b. Calculate and report the skewness and kurtosis values for the weight of adult bison
+```{r Skewness and Kurtosis}
+#calculate skewness
+skewness(bison_data$animal_weight)
+
+#calculate kurtosis
+kurtosis(bison_data$animal_weight)
+
+```
+The skewness for adult bison weight is 1.531318, and the kurtosis is 4.764673. 
+
+##c. Why would you or would you not assume these data are normally distributed? 
+
+Answer: I would not assume that these data are normally distributed. First, from the information provided we know that bison are sexually dimorphic and males weigh more than females which could contribute to bimodal data. Second, in the figures above, the data does not appear normal. And, finally, the absolute value of the skewness is >1 which indicates high skewness, and the kurtosis is >3 making it leptokurtic. 
+
+#Continuous Probability Distributions
+
+##a. What are the mean and standard deviation values for weights of adult, female bison?
+```{r Adult Female Bison}
+#filter for female bison
+female_bison_data <- filter(bison_data, animal_sex == 'F')
+
+#mean weight
+mean(female_bison_data$animal_weight)
+
+#standard deviation weight
+sd(female_bison_data$animal_weight)
+
+```
+The mean adult, female bison weight is 992.5751, and the standard deviation is 90.00992.
+
+##b. What is the probability of capturing an adult, female bison weighing less than 900 lbs? Weighing between 900 and 1100 lbs? What is the value below which 95% of adult female bison are expected to weigh? 
+```{r Probability Density Function}
+#Prob of female less than 900lbs
+pnorm(q = 900, mean = 993, sd = 90)
+
+#Prob of female between 900 and 1100lbs?
+#prob of female less than 1100lbs?
+pnorm(q = 1100, mean = 993, sd = 90)
+#subtract smaller prob from larger
+0.8827583 - 0.150724
+
+#value below which 95% are expected to weigh
+qnorm(p = .95, mean = 993, sd = 90)
+```
+The probability of capturing an adult, female bison weighing less than 900lbs is 15%.
+The probability of capturing an adult, female bison weighing between 900 and 1100 lbs is 73%.
+The value below which 95% of adult, female bison are expected to weigh is 1141 lbs.

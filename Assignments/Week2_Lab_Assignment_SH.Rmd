@@ -1,5 +1,5 @@
 ---
-title: "Week2_Lab_Assignment"
+title: "Lab 2 Assignment"
 author: "Summer Heschong"
 date: "2025-01-24"
 output: pdf_document
@@ -37,27 +37,42 @@ sd(crab_data$size)
 #Part 2: Creating Histograms
 ```{r, Creating Histograms}
 #a. Create histogram of fiddler crab carapace size
-ggplot(data = crab_data, aes(x = size)) +
+fig1 <- ggplot(data = crab_data, aes(x = size)) +
   geom_histogram(bins = 261, binwidth = 0.064) +
   labs(caption = 'Histogram of fiddler crab carapace size across sites')
+print(fig1)
 
-#To find the right number of bins I used 2n^1/3 or 2(392)^1/3, and for bin width I used range/#of bins
+#To find the right number of bins I used 2n^1/3 or 2(392)^1/3,
+#and for bin width I used range/#of bins
 
 #b. Create histograms of fiddler crab carapace size for each of the 13 sites
-ggplot(data = crab_data, aes(x = size)) +
+fig2 <- ggplot(data = crab_data, aes(x = size)) +
   geom_histogram(bins=20, binwidth = 0.25) +
-  facet_wrap(~site)
+  facet_wrap(~site) +
   labs(caption = 'Histograms of fiddler crab carapace size by site')
-  
+print(fig2)
 ```
 c. How do the raw values of fiddler crab carapace size in your first figure compare to the mean and median values you calculated above? Based on your second figure, do any sites display strong diﬀerences in their data distributions?
 
-Answer: 
+Answer: I think the raw values fit pretty well with the mean and median values I calculated above. In the first figure the values from around 12 - 16 all look pretty similar and there's a spike around 14. In the second figure all of the sites have pretty different data distributions. For example, at BC the data is pretty spread out across sizes, and at PIE the data is all to the left of size 15. 
 
-
+#Part 3: Data Visualization - the Golden Rules
 ```{r, Data Visualization}
+#a. Make a plot of your choice that follows the Golden Rules
+fig3 <- ggplot(data = crab_data, aes(x = site, y = size)) +
+  geom_point() +
+  labs(caption = "Scatterplot of fiddler crab carapace size by site")
+print(fig3)
 
-
+#b. Create worst version of fig3
+fig4 <- ggplot(
+  data = crab_data, 
+  aes(x = site, y = size, 
+      color = size, size = 1 )) +
+  geom_point() +
+  facet_wrap(~site) +
+  labs(caption = 'Carapace and island', x = 'x', y = 'y')
+print(fig4)
 ```
 
 
