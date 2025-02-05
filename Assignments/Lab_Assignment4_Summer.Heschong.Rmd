@@ -1,0 +1,42 @@
+---
+title: "Lab 4 Assignment"
+author: "Summer Heschong"
+date: "2025-02-05"
+output: pdf_document
+---
+#Setup
+```{r setup}
+#load packages
+library(here)
+library(tidyverse)
+library(dplyr)
+library(vcdExtra)
+
+#load in data set
+urchin_data <- read.csv(here('Data/Raw/urchins.csv'))
+```
+
+#1 Data Tidying and Visualization
+##a. Trim and filter dataset and convert to record of individual observations
+```{r Wrangle Data}
+#trim dataframe
+urchin_data <- urchin_data %>%
+  select(YEAR, MONTH, SITE, TREATMENT, SIZE, COUNT, COMMON_NAME)
+  
+#filter dataframe
+urchin_data <- urchin_data %>% 
+  filter(SITE == 'MOHK' & 
+           COMMON_NAME == 'Red Urchin' & 
+           YEAR >=2015&YEAR <= 2016)
+
+#convert to record of individual observations
+urchin_data <- expand.dft(urchin_data, freq = 'COUNT')
+
+```
+##b. Visualize size distributions
+```{r Visualize Data}
+#create histogram
+ggplot(urchin_data, aes(x = SIZE)) +
+  geom_histogram()
+
+```
