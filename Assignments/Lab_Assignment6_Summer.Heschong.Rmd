@@ -1,0 +1,105 @@
+---
+title: "Lab Assignment 6"
+author: "Summer Heschong"
+date: "2025-02-19"
+output: pdf_document
+---
+#Setup
+```{r, Setup}
+#load packages
+library(here)
+library(tidyverse)
+library(moments)
+
+#load data
+vertebrate_data <- read.csv(here('Data/Raw/and_vertebrates.csv'))
+
+```
+# (1) Coastal Giant Salamander
+##a. Are salamander data normally distributed?
+```{r, assess salamander normality}
+#filter dataset
+salamander_data <- vertebrate_data %>%
+  filter(species == 'Coastal giant salamander' & 
+           (unittype == 'C' | unittype == 'P' | unittype == 'SC'))
+
+#evaluate normality with figure
+fig1 <- ggplot(salamander_data, aes(x = length_2_mm, fill = unittype)) +
+  geom_histogram(bins = 45, binwidth = 6, color = 'black') +
+  facet_wrap(~unittype) +
+  labs(title = 'Coastal Giant Salamander Length by Habitat Type', 
+       x = 'snout-to-tail length (mm)')
+fig1
+
+#calculate skewness
+skewness(salamander_data$length_2_mm, na.rm = TRUE)
+
+#calculate kurtosis
+kurtosis(salamander_data$length_2_mm, na.rm = TRUE)
+
+#not normal -> apply a log-transformation
+salamander_data$length_2_mm <- log10(salamander_data$length_2_mm)
+
+#re-evaluate normality
+
+fig2 <- ggplot(salamander_data, aes(x = length_2_mm, fill = unittype)) +
+  geom_histogram(bins = 45, binwidth = 0.1, color = 'black') +
+  facet_wrap(~unittype) +
+  labs(title = 'Coastal Giant Salamander Length by Habitat Type', 
+       x = 'snout-to-tail length (log10 transformed)')
+fig2
+
+skewness(salamander_data$length_2_mm, na.rm = TRUE)
+
+kurtosis(salamander_data$length_2_mm, na.rm = TRUE)
+
+```
+Answer: Based on fig1 the data looks like it is not normally distributed with a longer right tail. The skewness and kurtosis values confirm this. I applied a log-transformation and re-evaluated the data. In fig2 the data looks pretty normally distributed. The new kurtosis value (3) confirms this, and though the skewness value is not equal to 0 it is close.  
+
+##b. Conduct a Bartlett's test for equal variance
+```{r, Bartlett Test}
+#perform Bartlett test
+salamander_var <- bartlett.test(salamander_data$length_2_mm, 
+                                salamander_data$unittype)
+salamander_var
+
+```
+Answer: These data do not have approximately equal variances because the p-value for the Bartlett test was less than 0.05. 
+
+#(2) Cutthroat Trout
+##a. Are trout data normally distributed? 
+```{r, assess trout normality}
+#filter dataset
+trout_data <- vertebrate_data %>%
+  filter(species == 'Cutthroat trout')
+
+#evaluate normality with figure
+fig3 <- ggplot(trout_data, aes(x = length_1_mm, fill = reach)) +
+  geom_histogram(bins = 55, binwidth = 4, color = 'black') +
+  facet_wrap(~reach) +
+  labs(title = 'Cutthroat Trout Length by Reach', 
+       x = 'snout-to-fork length (mm)')
+fig3
+
+#calculate skewness and kurtosis
+skewness(trout_data$length_1_mm, na.rm = TRUE)
+kurtosis(trout_data$length_1_mm, na.rm = TRUE)
+
+#not normal -> apply log-transformation
+trout_data$length_1_mm <- log10(trout_data$length_1_mm)
+
+#re-evaluate normality
+
+fig4 <- ggplot(trout_data, aes(x = length_1_mm, fill = reach)) +
+  geom_histogram(bins = 55, binwidth = 0.09, color = 'black') +
+  facet_wrap(~reach) +
+  labs(title = 'Cutthroat Trout Length by Reach', 
+       x = 'snout-to-fork length (log10 transformed')
+fig4
+
+skewness(trout_data$length_1_mm, na.rm = TRUE)
+kurtosis(trout_data$length_1_mm, na.rm = TRUE)
+
+
+```
+Answer: These data are not normally distributed as you can see in fig3. This is backed up by the kurtosis and skewness values. I applied a log-transformation to the data and re-evaluated. The data still do not appear to be normally distributed after the log-transformation. The skewness is less than 0 and the kurtosis is less than 3.
