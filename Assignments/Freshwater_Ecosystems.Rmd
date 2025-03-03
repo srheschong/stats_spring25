@@ -1,0 +1,27 @@
+---
+title: "Trout Pop Model"
+author: "Summer Heschong"
+date: "2025-02-28"
+output: html_document
+---
+
+```{r setup}
+library(here)
+library(tidyverse)
+library(dplyr)
+
+elevation <- read.csv(here('Data/Raw/elevation.csv'))
+extinct <- read.csv(here('Data/Raw/extinct.csv'))
+metapop <- read.csv(here('Data/Raw/metapop.csv'))
+nonnatives <- read.csv(here('Data/Raw/nonnatives.csv'))
+scale_factors <- read.csv(here('Data/Raw/scale.factors.csv'))
+
+```
+
+```{r filter}
+extinct <- extinct %>%
+  filter(GMU == 'Eastern Lahontan Basin' | GMU == 'Northwest Lahontan Basin')
+metapop <- metapop %>%
+  filter(GMU == 'Eastern Lahontan Basin' | GMU == 'Northwest Lahontan Basin')
+
+```

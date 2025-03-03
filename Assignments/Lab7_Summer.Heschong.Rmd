@@ -1,0 +1,173 @@
+---
+title: "Lab Assignment 7"
+author: "Summer Heschong"
+date: "2025-02-26"
+output:
+  html_document:
+    df_print: paged
+
+---
+#Setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(dunn.test)
+library(gt)
+library(paletteer)
+
+#load data set
+vert_data <- read.csv(here('Data/Raw/and_vertebrates.csv'))
+
+#filter data set for cutthroat trout
+trout_data <- vert_data %>%
+  filter(species == 'Cutthroat trout')
+```
+#(1) Mann-Whitney U and Wilcoxon Signed-Rank Tests
+##a. Examine normality of data and run a Mann-Whitney U test
+```{r MannWhitney U Test}
+#visualize data
+fig1 <- ggplot(trout_data, aes(x = length_1_mm, fill = section)) +
+  geom_histogram(bins = 30, binwidth = 6, color = 'black') +
+  facet_wrap(~section) +
+  labs(title = 'Cutthroat Trout Length by Forest Treatment', 
+       x = 'snout-to-fork length (mm)')
+fig1
+
+#run Mann-Whitney U test
+
+#First separate fish lengths by forest treatment type
+CCtrout_data <- trout_data %>%
+  filter(section == 'CC')
+OGtrout_data <- trout_data %>%
+  filter(section == 'OG')
+
+#Are ranks of fish lengths significantly different between forest treatment types?
+wilcox.test(CCtrout_data$length_1_mm, 
+            OGtrout_data$length_1_mm, 
+            paired = FALSE)
+```
+Answer: There was a significant difference in ranks between cutthroat trout snout-to-fork length in clear-cut forest (median = 88mm, IQR = 50-111mm) and in old growth forests (median = 84mm, IQR = 48-108mm) as determined by a Mann-Whitney U Test (W = 55,178,843, p = 7.7e-16).
+
+##b. Visualize data to assess normality and run a Wilcoxon Signed-Rank test
+```{r Wilcoxon Signed-Rank test}
+#load in new dataset
+recapture_data <- read.csv(here('Data/Raw/trout_recapture_v2.csv'))
+
+#visualize data
+fig2 <- ggplot(recapture_data, aes(x = length_1_mm, fill = year)) +
+  geom_histogram(bins = 11, binwidth = 7, color = 'black') +
+  facet_wrap(~year) +
+  labs(title = 'Cutthroat Trout Length by Year', 
+       x = 'snout-to-fork length (mm)')
+fig2
+
+#run Wilcoxon Signed-Rank test
+#first separate data by year
+trout2014 <- recapture_data %>%
+  filter(year == '2014')
+trout2015 <- recapture_data %>%
+  filter(year == '2015')
+
+#Are ranks of fish lengths significantly different between years?
+wilcox.test(trout2014$length_1_mm, 
+            trout2015$length_1_mm, 
+            paired = TRUE)
+
+```
+Answer: There was a significant difference in ranks between cutthroat trout snout-to-fork length in 2014 (median = 104mm, IQR = 91-114mm) and in 2015 (median = 118mm, IQR = 108-127mm) as determined by a Wilcoxon Signed Rank Test (V = 625.5, p = 4.97e-08).
+
+#(2) Kruskal Wallis and post-hoc Dunn's Tests
+##a. Visualize data and run a Kruskal Wallis test
+```{r Kruskal Wallis and Dunn Test}
+#Visualize Data
+fig3 <- ggplot(trout_data, aes(x = length_1_mm, fill = reach)) +
+  geom_histogram(bins = 37, binwidth = 6, color = 'black') +
+  facet_wrap(~reach) +
+  labs(title = 'Cutthroat Trout Length by Reach', 
+       x = 'snout-to-fork length (mm)')
+fig3
+
+#Run a Kruskal Wallis Test to see if ranks of fish lengths are significantly different among stream reaches
+kruskal.test(length_1_mm ~ reach, data = trout_data)
+
+#Ranks are significantly different -> run a Dunn's test
+dunn.test(trout_data$length_1_mm, trout_data$reach)
+
+#calculate central tendencies of reach sections for report
+#filter reach by section
+reach_L <- trout_data %>%
+  filter(reach == 'L')
+reach_M <- trout_data %>%
+  filter(reach == 'M')
+reach_U <- trout_data %>%
+  filter(reach == 'U')
+
+#calculate medians
+median(reach_L$length_1_mm, na.rm = TRUE)
+median(reach_M$length_1_mm, na.rm = TRUE)
+median(reach_U$length_1_mm, na.rm = TRUE)
+
+#calculate IQR
+quantile(reach_L$length_1_mm, 0.25, na.rm = TRUE)
+quantile(reach_L$length_1_mm, 0.75, na.rm = TRUE)
+quantile(reach_M$length_1_mm, 0.25, na.rm = TRUE)
+quantile(reach_M$length_1_mm, 0.75, na.rm = TRUE)
+quantile(reach_U$length_1_mm, 0.25, na.rm = TRUE)
+quantile(reach_U$length_1_mm, 0.75, na.rm = TRUE)
+
+
+
+```
+Answer: There was a significant difference in ranks between reach section L (median = 85mm, IQR = 48-107mm) and M (median = 89mm, IQR = 51-114mm) and between M (median = 89mm, IQR = 51-114mm) and U (median = 85mm, IQR = 48-109mm), but not between L (median = 85mm, IQR = 48-107mm) and U (median = 85mm, IQR = 48-109mm) as determined by a Kruskal Wallis test (Kruskal-Wallis chi-squared = 77.394, df = 2, p-value < 2.2e-16) and post-hoc Dunn's test (Kruskal-Wallis chi-squared = 77.3942, df = 2, p-value = 0). 
+
+##b.Visualize results of Kruskal Wallis and Dunn's Tests
+```{r vis results}
+fig4 <- ggplot(trout_data, aes(x = length_1_mm, fill = reach)) +
+  geom_histogram(bins = 37, binwidth = 6, color = 'black') +
+  facet_wrap(~reach) +
+  labs(title = 'Cutthroat Trout Length by Reach', 
+       x = 'snout-to-fork length (mm)',
+       caption = "Results of Kruskal Wallis Test = Kruskal-Wallis chi-squared = 77.394, df = 2, p-value < 2.2e-16
+Dun's Test = Kruskal-Wallis chi-squared = 77.3942, df = 2, p-value = 0")
+fig4
+```
+#(3) Contingency Tables and the Chi-Squared Test
+##a. Create a Contingency Table
+```{r Contingency Table}
+#get data ready for contingency table
+contingency_table <- trout_data %>%
+  group_by(reach, unittype) %>%
+  summarise(trout_count = n()) %>%
+  pivot_wider(names_from = unittype, values_from = trout_count, values_fill = 0) %>%
+  column_to_rownames(var = "reach")
+ 
+
+#create table
+fish_counts <- contingency_table %>%
+  gt(rowname_col = 'Reach') %>%
+  tab_header(title = 'Fish Counts by Reach and Habitat Type') %>%
+  grand_summary_rows(columns = c(C, I, IP, P, R, S, SC),
+    fns = list(Total = ~sum(., na.rm = TRUE)),
+    use_seps = TRUE 
+    ) %>%
+    data_color(columns = c(C, I, IP, P, R, S, SC),
+    palette = c("#C0D8F0", "#5A7ECB"), 
+    alpha = 0.75)
+fish_counts
+
+```
+##b. Run a Chi-Squared Test 
+H0: There is no significant effect of reach on fish counts in different habitat types
+HA: There is a significant effect of reach on fish counts in different habitat types
+```{r chi squared}
+
+#run a Chi-Squared test
+chi_test <- chisq.test(contingency_table)
+chi_test
+
+#examine observed counts
+chi_test$observed
+
+```
+Answer: There was found to be a significant effect of reach on fish counts in different habitat types as determined by a chi-squared test (x^2 = 1,925.5, p < 2.2e-16). For each reach L,M, and U habitat C had the highest fish count. 
+

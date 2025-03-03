@@ -1,0 +1,110 @@
+---
+title: "Lab 7"
+author: "Summer Heschong"
+date: "2025-02-26"
+output: pdf_document
+---
+#Setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(dunn.test)
+library(gt)
+library(paletteer)
+
+```
+
+#Non-Parametric Tests
+```{r MannWhitney U test and Wilcoxon SignedRank Test}
+wb <- warpbreaks
+
+#save data by wool type
+wbA <- wb%>%
+  filter(wool =='A')
+
+wbB <- wb%>%
+  filter(wool == 'B')
+
+#Is there a significant difference in wool type regarding number of times it breaks on the loom?
+mann_test <- wilcox.test(wbA$breaks, wbB$breaks, paired = FALSE)
+mann_test
+
+#is there a significant difference in wool breaks in dry versus humid room conditions?
+wilcox_test <-  wilcox.test(wbA$breaks, wbB$breaks, paired = TRUE)
+wilcox_test
+```
+```{r KruskalWallis and Dunn Tests}
+#Is there a significant difference in wool tension regarding number of times it breaks on the loom??
+kruskal_test <- kruskal.test(breaks ~ tension, data = wb)
+kruskal_test
+
+#It appears there is, so which tension levels are significantly different from one another?
+dunn_test <- dunn.test(wb$breaks, wb$tension)
+dunn_test
+
+#rephrase null hypothesis, and from result of test we can show the answer.
+```
+#Chi-squared Test
+```{r ChiSquared Test}
+#create a sequence of number of different bird types visitin g a suet feeder. the numbers represent the following birds: Caroliina wrens, cardinals, tufted titmice, and mockingbirds.
+birds <- c(12, 14, 11, 15)
+
+#conduct a chi-squared test to test for equal likeligoods of all outcomes
+chi_test <- chisq.test(birds)
+chi_test
+
+#Examine observed counts
+chi_test$observed
+
+#Examine expected counts
+chi_test$expected
+
+#Examine standardized residuals
+chi_test$stdres
+
+#likelihood of all possibilities are not equal
+chisq.test(birds, p = c(0.17, 0.17, 0.16, 0.50))
+
+#more than a single outcome use contingcy tables. assume proportions of birds are equal in the following
+#create counts of bird species visiting three different feeder types - suet, seed, and mealworm
+wren <- c(12, 17, 9)
+cardinal <- c(14, 20, 21)
+titmouse <- c(11, 15, 7)
+mockingbird <- c(15, 4, 2)
+
+#create data table
+birdTable <- cbind(wren, cardinal, titmouse, mockingbird)
+#update column names
+rownames(birdTable) <- c('Suet', 'Seed', 'Mealworm')
+
+#Is there a significant effect of feeder type on bird species occurrence 
+chi_test_table <- chisq.test(birdTable)
+
+#yes, there is a significant difference
+chi_test_table$stdres
+```
+#Data Vistualization
+```{r}
+#make the bird dataset a dataframe
+birdDF <- as.data.frame(birdTable)
+
+#make rownames their own column
+birdDF <- rownames_to_column(birdDF, var = 'Feeder')
+
+#create a table of recorded bird species visiting different feeders
+bird_gt <- birdDF %>%
+  gt(rowname_col = 'Feeder') %>% #creates base table
+  tab_header(title = 'Bird Species Counts by Feeder Type') %>% #adds title
+  cols_label(wren = 'Carolina Wren',
+             cardinal = 'Cardnal',
+             titmouse = ' Tufted Titmouse',
+             mockingbird = 'Mockingbird') %>% #edits column names
+  grand_summary_rows(columns = c(wren, cardinal, titmouse, mockingbird),
+                     fns = list(label = 'Total')) ~ sum(., na.rm = TRUE,
+                     use_seps = TRUE) %>% #adds grand total row
+  data_color(columns = c(wren, cardinal, titmouse, mockingbird),
+             pallette = c('#C0D8F0', '#5A7ECB'), #endpoint colors
+             alpha = 0.75) #slightly transparent
+  bird_gt
+
+```
