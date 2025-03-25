@@ -1,0 +1,261 @@
+---
+title: "Lab9"
+author: "Summer Heschong"
+date: "2025-03-19"
+output: pdf_document
+---
+#setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(naniar)
+library(DHARMa)
+library(gtsummary)
+library(broom)
+
+#load data
+sharkriver <- read_csv(here('Data/Raw/fce_sharkriver.csv'))
+coralfish <- read_csv(here('Data/Raw/mcr_fish.csv'))
+
+```
+
+#Logistic Regression
+
+```{r, tidy}
+sharkriver2 <- sharkriver %>%
+  replace_with_na_all(condition = ~.x == -9999) %>%
+  filter(DO <30)
+
+```
+
+## Step 1 define research question
+Do water temperature, salinity, and season significantly predict hypoxic conditions?
+
+```{r tidy more}
+
+#make columns for hypoxia and seasons
+sharkriver2 <- sharkriver2 %>%
+  mutate(hypoxia = case_when(DO <= 4 ~ 'YES',
+                             DO > 4 ~ 'NO')) %>%
+  mutate(season = case_when(DayofYear >= 59 & DayofYear < 151 ~ 'Spring',
+                            DayofYear >= 151 & DayofYear < 243 ~ 'Summer',
+                            DayofYear >= 243 & DayofYear < 334 ~ 'Fall',
+                            TRUE ~ 'Winter'))
+
+
+```
+
+## Step 2 examine data
+### a. display distributions or raw counts of data
+```{r vis data}
+#create histograms of data
+
+ggplot(sharkriver2, aes(x = hypoxia)) +
+geom_bar()
+
+ggplot(sharkriver2, aes(x = WaterTemp)) +
+geom_histogram(color = 'black')
+
+ggplot(sharkriver2, aes(x = Salinity)) +
+geom_histogram(color = 'black')
+
+ggplot(sharkriver2, aes(x = season)) +
+geom_bar(color = 'black')
+
+
+
+```
+
+### b. display relationshipbs between predictor and outcome
+
+```{r vis data more}
+#create scatterplots
+
+ggplot(sharkriver2, aes(x = WaterTemp, y = hypoxia)) +
+geom_point(color = 'black')
+
+ggplot(sharkriver2, aes(x = Salinity, y = hypoxia)) +
+geom_point(color = 'black')
+
+ggplot(sharkriver2, aes(x = season, y = hypoxia)) +
+geom_point(color = 'black')
+
+
+
+```
+
+## Step 3 fit regression model
+
+```{r factors}
+#change chr to factor
+sharkriver2$hypoxia <- factor(sharkriver2$hypoxia,
+                              levels = c('NO', 'YES'))
+
+sharkriver2$season <- factor(sharkriver2$season,
+                             levels = c('Winter', 'Spring',
+                                        'Summer', 'Fall'))
+#fit logistic regressioin model
+hypox_mod <- glm(hypoxia ~ WaterTemp + Salinity + season,
+                 data = sharkriver2,
+                 family = 'binomial')
+
+```
+
+## Step 4 evaluate model diagnostics
+
+```{r review}
+#examine model output
+summary(hypox_mod)
+
+#examine modified residuals plot
+simulateResiduals(hypox_mod) %>% plot()
+
+```
+
+#Step 5 - Interpret model and communicate the results
+```{r vis extra}
+#simulate temp data
+temp_vector <- rep(seq(from = 0, to = 40), 4)
+
+#keep salinity constant. often ppl will use the mean or median of a continuous value
+sal_vector <- rep(mean(sharkriver2$Salinity,
+                       na.rm = TRUE), 164)
+
+#simulate seasonal data
+season_vector <- c(rep('Winter', 41),
+                   rep("Spring", 41),
+                   rep('Summer', 41),
+                   rep('Fall', 41))
+
+#join with continuous data
+data_pred <- data.frame(temp_vector, season_vector, sal_vector)
+colnames(data_pred) <- c('WaterTemp', 'season', 'Salinity')
+
+#use original model to predict outcomes
+prediction <- predict(hypox_mod,
+                      newdata = data_pred,
+                      type = 'response',
+                      se.fit = TRUE)
+
+#pull out predictions
+data_fig <- data.frame(data_pred,
+                       prediction$fit,
+                       prediction$se.fit)
+
+#rename columns
+colnames(data_fig) <- c('WaterTemp', 'season', 'Salinity', 'probability', 'se')
+
+#graph the probabilities of hypoxia
+ggplot(data_fig, aes(x = WaterTemp,
+                     y = probability)) +
+  geom_line(aes(colour = season)) +
+  geom_ribbon(aes(ymin = probability - se,
+                  ymax = probability + se,
+                  fill = season), alpha = 0.3) +
+  labs(x = 'Temperature (degrees C)', y = 'Probability of Hypoxia',
+       color = 'Season', fill = 'Season') +
+  theme_bw()
+
+```
+
+# Poisson Regression
+
+## Step 1 define research question
+Do water depth and habitat type significantly predict daisy parrotfish counts?
+
+## Step 2 examine data and possible correlations
+
+```{r examine again}
+#filter data for our species
+ parrotfish <- coralfish %>%
+  filter(Species == 'Chlorurus sordidus')
+
+#histograms
+ggplot(parrotfish, aes(x = Count)) +
+geom_histogram(color = 'black')
+
+ggplot(parrotfish, aes(x = Depth_m)) +
+geom_histogram(color = 'black')
+
+ggplot(parrotfish, aes(x = Habitat)) +
+geom_bar(color = 'black')
+
+#scatterplots
+ggplot(parrotfish, aes(x = Depth_m, y = Count)) +
+geom_point(color = 'black')
+
+ggplot(parrotfish, aes(x = Habitat, y = Count)) +
+geom_point(color = 'black')
+
+
+```
+
+## Step 3 fit regression model
+
+```{r regressions}
+#transform chr to factor
+parrotfish$Habitat <- factor(parrotfish$Habitat,
+                             levels = c('Forereef',
+                                        'Pass',
+                                        'Lagoon',
+                                        'Fringing Reef'))
+
+#fit a poisson regression model
+fish_mod <- glm(Count ~ Depth_m + Habitat,
+                data = parrotfish,
+                family = 'poisson')
+
+
+```
+
+## Step 4 evaluate model diagnostics
+
+```{r eval model}
+#examine model output
+summary(fish_mod)
+
+#examine residuals
+plot(fish_mod)
+
+#remove outliers
+parrotfish2 <- parrotfish[-c(69, 87),]
+
+#refit poisson model
+fish_mod2 <- glm(Count ~ Depth_m + Habitat,
+                data = parrotfish2,
+                family = 'poisson')
+
+#reexamine model output
+summary(fish_mod2)
+
+plot(fish_mod2)
+
+#remove more outliers
+parrotfish3 <- parrotfish2[-c(82, 99, 100),]
+
+#refit model
+fish_mod3 <- glm(Count ~ Depth_m + Habitat,
+                data = parrotfish3,
+                family = 'poisson')
+
+#re-examine model
+summary(fish_mod3)
+
+plot(fish_mod3)
+
+```
+
+## step 5 communicate results 
+
+```{r report}
+
+#format results as gt table
+tbl_regression(fish_mod3)
+
+#export model rsults as a dataframe
+fish_mod_summary <- tidy(fish_mod3,
+                         exponentiate = TRUE, #reports exponentiated values
+                         conf.int = TRUE) # adds confidence intervals
+
+```
+

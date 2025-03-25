@@ -1,0 +1,464 @@
+---
+title: "Lab Assignment 8"
+author: "Summer Heschong"
+date: "2025-03-07"
+output: pdf_document
+---
+# (1) Load, Tidy, and Combine Datasets
+## Load packages and data
+```{r setup}
+library(here)
+library(tidyverse)
+library(dplyr)
+
+#load data
+Census_data <- read.csv(here('Data/Raw/NC_Census.csv'))
+Recreation_data <- read.csv(here('Data/Raw/NC_Recreation_Acreage.csv'))
+```
+
+## Tidy data
+```{r tidy}
+#filter Recreation data for relevant counties and sum local, state, 
+#and federal recreation acreage to form total recreation acreage by county
+Recreation_data <- Recreation_data %>%
+  filter(Area.Name %in% c('Chatham County', 'Wake County', 
+                          'Alamance County','Orange County', 
+                          'Durham County', 'Caswell County',
+                          'Person County', 'Granville County', 
+                          'Franklin County', 'Vance County', 
+                          'Lee County', 'Moore County', 
+                          'Randolph County', 'Guilford County', 
+                          'Rockingham County', 'Halifax County', 
+                          'Nash County', 'Wilson County', 
+                          'Johnston County', 'Harnett County')) %>%
+  pivot_wider(names_from = Variable, values_from = Value) %>%
+  group_by(`Total Outdoor Recreation Acreage` = 
+             `Local Outdoor Recreation Acreage` + 
+             `Federal Outdoor Recreation Acreage` + 
+             `State Outdoor Recreation Acreage`)
+
+#Filter census data
+Census_data <- Census_data %>%
+  filter(Fact %in% c("Population estimates, July 1, 2023, (V2023)", 
+                     "Persons under 18 years, percent", 
+                     "Persons 65 years and over, percent", 
+                     "Female persons, percent", 
+                     "White alone, percent", 
+                     "Black alone, percent (a)", 
+                     "Hispanic or Latino, percent (b)", 
+                     "Median value of owner-occupied housing units, 2019-2023",
+                     "Persons per household, 2019-2023", 
+                     "Median households income (in 2023 dollars), 2019-2023"))
+
+```
+
+## Combine data
+```{r}
+#ready census data for combining
+Census_data <- Census_data %>%
+  select(!Fact.Note)%>% #remove Fact.Note column
+  pivot_longer(!c(Fact), #combine county columns into one column
+               names_to = 'Counties', 
+               values_to = 'Values') %>%
+  pivot_wider(names_from = Fact, values_from = Values) %>%#make each row in Fact its own column
+  mutate(Area.Name = c('Chatham County', 'Wake County',     # make a column that's exactly
+                          'Alamance County','Orange County',#the same as one in the other   
+                          'Durham County', 'Caswell County',#dataset
+                          'Person County', 'Granville County', 
+                          'Franklin County', 'Vance County', 
+                          'Lee County', 'Moore County', 
+                          'Randolph County', 'Guilford County', 
+                          'Rockingham County', 'Halifax County', 
+                          'Nash County', 'Wilson County', 
+                          'Johnston County', 'Harnett County'))
+  
+#convert characters to numbers 
+Census_data$`Median value of owner-occupied housing units, 2019-2023` <- 
+  as.numeric(gsub("[$,]", "", 
+  Census_data$`Median value of owner-occupied housing units, 2019-2023`))
+
+Census_data$`Median households income (in 2023 dollars), 2019-2023` <- 
+  as.numeric(gsub("[$,]", "", 
+  Census_data$`Median households income (in 2023 dollars), 2019-2023`))
+
+Census_data$`Persons under 18 years, percent` <- 
+  as.numeric(gsub("[%]", "", Census_data$`Persons under 18 years, percent`))
+  
+Census_data$`Persons 65 years and over, percent` <- 
+  as.numeric(gsub("[%]", "", Census_data$`Persons 65 years and over, percent`))
+  
+Census_data$`Female persons, percent` <- 
+  as.numeric(gsub("[%]", "", Census_data$`Female persons, percent`))  
+  
+Census_data$`White alone, percent` <- 
+  as.numeric(gsub("[%]", "", Census_data$`White alone, percent`))  
+
+Census_data$`Black alone, percent (a)` <- 
+  as.numeric(gsub("[%]", "", Census_data$`Black alone, percent (a)`))  
+
+Census_data$`Hispanic or Latino, percent (b)` <- 
+  as.numeric(gsub("[%]", "", Census_data$`Hispanic or Latino, percent (b)`))
+
+Census_data$`Population estimates, July 1, 2023, (V2023)` <-
+  as.numeric(gsub("[,]", "", 
+                  Census_data$`Population estimates, July 1, 2023, (V2023)`))
+
+Census_data$`Persons per household, 2019-2023` <-
+  as.numeric(Census_data$`Persons per household, 2019-2023`)
+
+
+#combine datasets
+combined_data <- left_join(Census_data, Recreation_data)
+
+```
+
+# (2) Perform a Multiple Linear Regression
+## Step 1 - Define Research Question
+
+Research Question: What demographic factors significantly predict outdoor recreation acreage at the county level across 20 North Carolina counties?
+
+## Step 2 - Examine Data
+### Create histograms of raw values for each variable
+```{r viz thru hist}
+
+#Pop estimates
+ggplot(combined_data, aes(x = `Population estimates, July 1, 2023, (V2023)`)) +
+geom_histogram(color = 'black')
+
+#Ppl under 18
+ggplot(combined_data, aes(x = `Persons under 18 years, percent`)) +
+geom_histogram(color = 'black')
+
+#Ppl 65 and over
+ggplot(combined_data, aes(x = `Persons 65 years and over, percent`)) +
+geom_histogram(color = 'black')
+
+#XX ppl
+ggplot(combined_data, aes(x = `Female persons, percent`)) +
+geom_histogram(color = 'black')
+
+#White ppl
+ggplot(combined_data, aes(x = `White alone, percent`)) +
+geom_histogram(color = 'black')
+
+#Black ppl
+ggplot(combined_data, aes(x = `Black alone, percent (a)`)) +
+geom_histogram(color = 'black')
+
+#Hispanic/Latine ppl
+ggplot(combined_data, aes(x = `Hispanic or Latino, percent (b)`)) +
+geom_histogram(color = 'black')
+
+#Median value of owned homes
+ggplot(combined_data, aes(x = `Median value of owner-occupied housing units, 2019-2023`)) +
+geom_histogram(color = 'black')
+
+#Ppl/household
+ggplot(combined_data, aes(x = `Persons per household, 2019-2023`)) +
+geom_histogram(color = 'black')
+
+#Median household income
+ggplot(combined_data, aes(x = `Median households income (in 2023 dollars), 2019-2023`)) +
+geom_histogram(color = 'black')
+
+#Total outdoor recreation acreage
+ggplot(combined_data, aes(x = `Total Outdoor Recreation Acreage`)) +
+geom_histogram(color = 'black')
+```
+
+### Look at relationships between independent variables and Total Outdoor Recreation Acreage
+
+```{r viz thru scatter}
+#Create scatterplots of recreation acreage by:
+
+#pop estimates
+ggplot(combined_data, aes(x = `Population estimates, July 1, 2023, (V2023)`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Ppl under 18
+ggplot(combined_data, aes(x = `Persons under 18 years, percent`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Ppl 65 and older
+ggplot(combined_data, aes(x = `Persons 65 years and over, percent`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#XX ppl
+
+ggplot(combined_data, aes(x = `Female persons, percent`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#White ppl
+ggplot(combined_data, aes(x = `White alone, percent`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Black ppl
+ggplot(combined_data, aes(x = `Black alone, percent (a)`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Hispanic or Latine ppl
+ggplot(combined_data, aes(x = `Hispanic or Latino, percent (b)`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Median value of owned homes
+ggplot(combined_data, aes(x = `Median value of owner-occupied housing units, 2019-2023`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Ppl/household
+ggplot(combined_data, aes(x = `Persons per household, 2019-2023`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+
+#Median household income
+ggplot(combined_data, aes(x = `Median households income (in 2023 dollars), 2019-2023`,
+                        y =`Total Outdoor Recreation Acreage`)) + 
+  geom_point()
+```
+
+### Investigate multi-collinearity
+
+```{r}
+#possible correlations between pop estimates and: 
+
+#Ppl under 18
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Persons under 18 years, percent`)
+
+#Ppl 65 or older
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Persons 65 years and over, percent`)
+
+#XX ppl
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Female persons, percent`)
+
+#White ppl
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`White alone, percent`)
+
+#Black ppl
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Black alone, percent (a)`)
+
+#Hispanic or Latine ppl
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Population estimates, July 1, 2023, (V2023)`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+
+#possible correlations between ppl under 18 and: 
+
+##Ppl 65 or older
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Persons 65 years and over, percent`)
+
+#XX ppl
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Female persons, percent`)
+
+#White ppl
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`White alone, percent`)
+
+#Black ppl
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Black alone, percent (a)`)
+
+#Hispanic or Latine ppl
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Persons under 18 years, percent`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#possible correlations between ppl 65 and older and: 
+#XX ppl
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Female persons, percent`)
+
+#White ppl
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`White alone, percent`)
+
+#Black ppl
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Black alone, percent (a)`)
+
+#Hispanic or Latine ppl
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Persons 65 years and over, percent`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#possible correlations between XX ppl and : 
+#White ppl
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`White alone, percent`)
+
+#Black ppl
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`Black alone, percent (a)`)
+
+#Hispanic or Latine ppl
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Female persons, percent`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#possible correlations between white ppl and: 
+#Black ppl
+cor.test(combined_data$`White alone, percent`, 
+         combined_data$`Black alone, percent (a)`)
+
+#Hispanic or Latine ppl
+cor.test(combined_data$`White alone, percent`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`White alone, percent`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`White alone, percent`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`White alone, percent`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#Possible correlations between black ppl and: 
+#Hispanic or Latine ppl
+cor.test(combined_data$`Black alone, percent (a)`, 
+         combined_data$`Hispanic or Latino, percent (b)`)
+
+#Median value of owned homes
+cor.test(combined_data$`Black alone, percent (a)`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Black alone, percent (a)`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Black alone, percent (a)`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#possible correlations between Hispanic or Latine ppl and: 
+#Median value of owned homes
+cor.test(combined_data$`Hispanic or Latino, percent (b)`, 
+         combined_data$`Median value of owner-occupied housing units, 2019-2023`)
+
+#Ppl/household
+cor.test(combined_data$`Hispanic or Latino, percent (b)`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Hispanic or Latino, percent (b)`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#Possible correlations between median owned homes value and: 
+#Ppl/household
+cor.test(combined_data$`Median value of owner-occupied housing units, 2019-2023`, 
+         combined_data$`Persons per household, 2019-2023`)
+
+#Median household income
+cor.test(combined_data$`Median value of owner-occupied housing units, 2019-2023`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+#possible correlations between ppl/household and: 
+#median household income
+cor.test(combined_data$`Persons per household, 2019-2023`, 
+         combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+
+```
+
+## Step 3 - Fit regression model
+
+```{r regression}
+#fit first regression model
+Model1 <- lm(`Total Outdoor Recreation Acreage` ~
+     `Population estimates, July 1, 2023, (V2023)`+ 
+     `Persons per household, 2019-2023` + 
+     `Black alone, percent (a)` +
+     `Hispanic or Latino, percent (b)` +
+     `Median households income (in 2023 dollars), 2019-2023`, 
+      data = combined_data)
+
+#examine model
+summary(Model1)
+
+#examine model residuals
+plot(Model1)
+
+#log transform data
+combined_data$log_pop_estimates <- log10(combined_data$`Population estimates, July 1, 2023, (V2023)`)
+combined_data$log_pplPerHousehold <- log10(combined_data$`Persons per household, 2019-2023`)
+combined_data$log_Black_ppl <- log10(combined_data$`Black alone, percent (a)`)
+combined_data$log_Hispanic_ppl <- log10(combined_data$`Hispanic or Latino, percent (b)`)
+combined_data$log_HH_income <- log10(combined_data$`Median households income (in 2023 dollars), 2019-2023`)
+combined_data$log_Acreage <- log10(combined_data$`Total Outdoor Recreation Acreage`)
+
+#re-run model
+Model2 <- lm(log_Acreage ~ log_pop_estimates + log_pplPerHousehold +
+                log_HH_income + log_Black_ppl +log_Hispanic_ppl, 
+              data = combined_data)
+
+summary(Model2)
+
+plot(Model2)
+
+```
+
+# (3) Narrate Decision-making
+I decided to choose the following variables for my model: population estimates, persons per household, percent black alone, percent Hispanic or Latino, and median households income. I first looked at variables which had very low correlations with each other. Then out of those I chose variables that seemed to have a relationship with total outdoor recreation acreage based on their scatterplots. I fit these variables into a multiple linear regression model. The R2 and adjusted R2 were very low suggesting the model explains very little of the variability of the dependent variable. Also the first plot of the residuals shows some heteroscedasticity so I decided to log transform the data and re-run the model. The results of the new model are worse than the first. They show that these variables do not predict variability in total outdoor recreation acreage. 
+
+# (4) Describe Final Model Output
+The results of a multiple linear regression (F = 0.66, p = 0.66, Adjusted R2 = -0.98) suggest that total outdoor recreation acreage is not significantly predicted by population, people per household, percent of black people, percent of Hispanic or Latino people, or median household income. None of the independent variables were statistically significant (all p-values > 0.2). Although a log-transformation was applied to improve model fit it did not meaningfully enhance the results.This suggests that different variables ought to be used to predict recreation acreage. 

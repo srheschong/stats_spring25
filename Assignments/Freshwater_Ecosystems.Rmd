@@ -24,4 +24,95 @@ extinct <- extinct %>%
 metapop <- metapop %>%
   filter(GMU == 'Eastern Lahontan Basin' | GMU == 'Northwest Lahontan Basin')
 
+#filter populations for fish reintroduction
+add_fish <- extinct %>%
+  filter(extinct >= 0.5)
+
+#filter for vegetation restoration
+fix_ndvi <- extinct %>%
+  filter(extinct < 0.95 & extinct > .8)
+list(fix_ndvi$PopulationName)
+
+#filter metapop to find total km treated
+length_of_streams_chosen <- elevation %>%
+  filter(PopulationName %in% c("Andorno", "Bartlett", "Battle_NF", "Big&Big_NF", "Bottle", "BuffaloCanyon", "Canyon&Canyon_SF",  
+  "Colman_up", "Crowley", "Donnelly", "Eightmile", "FallsCanyon", "Happy", "HorseCanyon", "House",  
+  "Jackson", "KlondikeCan&Quinn_EF&Laca", "LineCanyon", "MarySloan", "McConnell", "Paiute", "Pole_QRD",  
+  "Rebel", "Rock_dwn_QRD", "Snow&Chicken&Leonard", "Threemile", "Whitehorse_OR", "Whitehorse_OR_E_up",  
+  "Whitehorse_OR_W_up", "Willow_OR_dwn", "Willow_OR_up", "Willow_QRD", "Willow_QRD_SF",  
+  "Cottonwood&Indian_QRD", "McDermitt_dwn&Sage_dwn", "McDermitt_NF&McD_up", "McDermittReconnect",  
+  "Riser", "Sage_up_QRD", "Washburn_dwn", "Washburn_up", "Flat", "Kings&ColdSpgs", "KingsReconnect",  
+  "LogCabin&Raster", "Rodeo", "Ackler", "Big&CorralCyn", "Birch", "Boone", "BoxCanyon_aka_Stoddard",  
+  "Brown", "Cabin&DJ&Lye&Martin&Deep&RoundCorral&Alkali", "Cabin_up", "Carville", "Cold_ColdNF",  
+  "Cold_NF_up", "Conrad_up", "Cottonwood_RRD", "Cottonwood_SFHRD", "CraneCanyon", "CraneCanyon_dwn",  
+  "Currant_up", "Dixie", "Dorsey", "Draw_AboveBarrier", "EchoCanyon_dwn", "EchoCanyon_up", "Frazer",  
+  "Gance_RdCny_Warm", "Gardner", "Greys", "Greys_up", "Hall&Greys_dwn", "Indian", "Indian_SF",  
+  "Kleckner_dwn&Welch", "Kleckner_up", "LamoilleCyn", "Lee", "Lewis_RRD", "LittleCottonwood",  
+  "LittleHumboldt_NF", "Mahala&Jim", "Mitchell&Mitchell_NF", "MohawkCanyon", "MRBC_up", "Mullinex",  
+  "Pearl", "PeteHanson", "Pie&Dorsey_low&Gance_low", "Rabbit", "Rattlesnake_SFHRD", "Rock_CrumCanyon",  
+  "Rock_EdnaMtn", "SanJuan&SanJuan_SF", "SFLH_Pole_Snowstorm", "Silver_NF", "Singas", "Sonoma",  
+  "Stephens", "Susie", "Tabor", "Thorpe_LamValley", "Tierney", "Washington", "WashONeal",  
+  "Willow&Lewis&Nelson", "WMR&CmpDraw&Gaws", "GreenMtn_Main_SF", "GreenMtn_NF", "GrMtnToynReconnect",  
+  "Toyn", "Coyote", "LittleJack", "LoneMtn", "Maggie", "MaggieReconnect", "Currant",  
+  "EMR&MRBC&CC&QC&Cutt&Short&WillBas", "Hanks&Conners", "MarysReconnect", "T_Creek&Draw", "Wildcat",  
+  "California", "Foreman", "Humboldt_NF&ColeCyn", "HumboldtReconnect", "Winters", "Rock_RCD",  
+  "RockTJReconnect", "ToeJam", "Gennette", "Smith_Main_NF_MF_SF", "SmithGenReconnect", "McCutcheon_dwn",  
+  "McCutcheon_up", "Trout_EastHumboldt", "Trout_EastHumboldt_up", "Conrad_dwn&Talbot_dwn", "Talbot_up",  
+  "Sherman", "Sherman_EF", "ShermanReconnect", "Abel", "Abel&SHReconnect", "StoneHouse", "Alles",  
+  "Alles&DeeringReconnect", "Deering", "Boulder_1st&2nd_dwn&WF", "Boulder_2nd_up", "Boulder_4th",  
+  "Boulder_EF&Boulder_3rd", "BoulderEFWFReconnect", "Furlong_N", "Mahogany&Segunda&LongCanyon",  
+  "Clear_RRD", "Illinois", "Reese&Sawmills", "ReeseReconnect", "Stewart&Stewart_NF&MF", "Marysville",  
+  "Marysville_nonconpop", "Marysville_nonconpop_up", "Pratt"))
+
+list(length_of_streams_chosen$PopulationName)
+
+#sum of km
+sum(length_of_streams_chosen$Pop_Extent_km)
+
+highest_extinct <- extinct %>%
+  filter(PopulationName %in% c('Adorno',
+  'Bartlett',
+  'Battle_NF',
+  'Big&Big_NF',
+  'BuffaloCanyon',
+  'Canyon&Canyon_SF',
+  'Colman_up',
+  'Crowley',
+  'Donnelly',
+  'Eightmile',
+  'FallsCanyon',
+  'Happy',
+  'HorseCanyon',
+  'House',
+  'Jackson',
+  'KlondikeCan&Quinn_EF&Laca',
+  'LineCanyon',
+  'MarySloan',
+  'McConnell',
+  'Paiute',
+  'Pole_QRD',
+  'Rebel',
+  'Rock_dwn_QRD',
+  'Snow&Chicken&Leonard',
+  'Threemile',
+  'Whitehorse_OR',
+  'Whitehorse_OR_E_up',
+  'Whitehorse_OR_W_up',
+  'Willow_OR_dwn',
+  'Willow_OR_up',
+  'Willow_QRD',
+  'Willow_QRD_SF',
+  'Cottonwood&Indian_QRD',
+  'McDermitt_dwn&Sage_dwn',
+  'McDermitt_NF&McD_up',
+  'McDermittReconnect',
+  'Riser',
+  'Sage_up_QRD',
+  'Washburn_dwn',
+  'Washburn_up',
+  'Flat',
+  'Kings&ColdSpgs',
+  'KingsReconnect',
+  'LogCabin&Raster',
+  'Rodeo') & extinct >= 0.9)
 ```

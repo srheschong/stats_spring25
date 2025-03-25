@@ -1,0 +1,226 @@
+---
+title: "Lab Assignment 9"
+author: "Summer Heschong"
+date: "2025-03-25"
+output: pdf_document
+---
+# (1) Logistic Regression
+```{r setup}
+#load packages
+library(here)
+library(tidyverse)
+library(naniar)
+library(DHARMa)
+library(gtsummary)
+library(broom)
+
+#load data
+lizards <- read.csv(here('Data/Raw/jrn_lizard.csv'))
+
+#filter dataset for side-blotched lizards
+lizards <- lizards %>%
+  filter(spp == 'UTST') %>%
+  na.omit
+```
+
+## Step 1 - Define research question
+Do snout-to-vent length, sex, and vegetation zone at time of capture significantly predict if a lizard tail is recorded as whole?
+
+## Step 2 - Examine data
+### a. Display distributions or raw counts of data
+```{r histograms}
+#create histograms displaying data
+
+#snout-to-vent length
+ggplot(lizards, aes(x = SV_length)) +
+geom_histogram(color = 'black')
+
+#sex
+ggplot(lizards, aes(x = sex)) +
+geom_bar ()
+
+#vegetation zone
+ggplot(lizards, aes(x = zone)) +
+geom_bar ()
+
+#lizard tail status
+ggplot(lizards, aes(x = tail)) +
+geom_bar ()
+```
+
+### b. Display relationships between predictor and outcome variables
+```{r bar}
+#create bar plots 
+
+#snout-to-vent length
+ggplot(lizards, aes(x = SV_length, fill = tail)) +
+geom_bar (position = 'dodge')
+
+#sex
+ggplot(lizards, aes(x = sex, fill = tail)) +
+geom_bar (position = 'dodge')
+
+#zone
+ggplot(lizards, aes(x = zone, fill = tail)) +
+geom_bar (position = 'dodge')
+
+```
+
+## Step 3 - Fit regression model
+```{r gen linear regression}
+# change characters to factors
+lizards$sex <- factor(lizards$sex, levels = c('J', 'F', 'M'))
+
+lizards$zone <- factor(lizards$zone, levels = c('G', 'C', 'M', 'T'))
+
+lizards$tail <- factor(lizards$tail, levels = c('B', 'W'))
+
+#fit regression model
+tail_mod <- glm(tail ~ SV_length + sex + zone,
+                data = lizards,
+                family = 'binomial')
+
+```
+
+## Step 4 - Evaluate model diagnostics
+```{r diag}
+#examine model output
+summary(tail_mod)
+
+#examine modified residuals plot
+simulateResiduals(tail_mod) %>% plot()
+
+```
+
+## Step 5 - Interpret model and communicate results
+### a. Report results
+The results of a logistic regression suggest that the log-odds of a lizard tail being whole are greater with shorter snout-to-vent length (B = -0.04, p < 0.001). There was no significant relationship between the log-odds of a lizard tail being whole and the sex of the lizard relative to juvenile lizards (male: B = -0.21, p < 0.52; female: B = -0.33, p < 0.27). There was a significant increase in the log-odds of a lizard tail being whole when the lizard is captured in creosotebush shrubland (B = 0.51, p < 0.01) relative to grama grassland. However, lizards caught in mesquite duneland and tarbush shrubland did not have significantly different log-odds of a lizard tail being whole relative to those caught in grama grassland (zoneM: B = 0.28, p < 0.14; zoneT: B = 0.26, p < 0.22). 
+
+### b. Provide 2 predictive figures
+```{r results}
+# simulate snout-to-vent length data
+SV_length_vector <- rep(seq(from = 0, to = 99), 12)
+
+#simulate sex data
+sex_vector <- c(rep('M', 400),
+                rep('F', 400),
+                rep('J', 400))
+
+#simulate zone data
+zone_vector <- c(rep('G', 300),
+                 rep('C', 300),
+                 rep('M', 300),
+                 rep('T', 300))
+
+#join data
+pred_data <- data.frame(SV_length_vector, sex_vector, zone_vector)
+colnames(pred_data) <- c('SV_length', 'sex', 'zone')
+
+#Use original model to predict outcomes
+prediction <- predict(tail_mod,
+                      newdata = pred_data,
+                      type = 'respons',
+                      se.fit = TRUE)
+#pull out predictions
+prob_data  <- data.frame(pred_data,
+                        prediction$fit,
+                        prediction$se.fit)
+#rename columns
+colnames(prob_data) <- c('SV_length', 'sex', 'zone', 'probability', 'se')
+
+#Graph probabilities of lizard tail being whole
+ggplot(prob_data, aes(x = SV_length, y = probability)) +
+  geom_line(aes(color = sex)) +
+  geom_ribbon(aes(ymin = probability - se,
+                  ymax = probability + se,
+                  fill = sex), alpha = 0.3) +
+  labs(x = 'Snout-to-Vent Length (mm)',
+  y = 'Probability of a Lizard Tail Being Whole',
+  caption = 'Predictive figure showing change in probability of a lizard tail being whole \n as lizard length increases, with lines colored by sex.')
+
+ggplot(prob_data, aes(x = SV_length, y = probability)) +
+  geom_line(aes(color = zone)) +
+  geom_ribbon(aes(ymin = probability - se,
+                  ymax = probability + se,
+                  fill = zone), alpha = 0.3) +
+  labs(x = 'Snout-to-Vent Length (mm)',
+  y = 'Probability of a Lizard Tail Being Whole',
+   caption = 'Predictive figure showing change in probability of a lizard tail being whole \n as lizard length increases, with lines colored by vegetation zone.')
+``` 
+
+# (2) Poisson Regression
+## Step 1 - Define research question
+Do season and plant species percent cover significantly predict lizard counts?
+```{r setup2}
+lizard_counts <- read.csv(here('Data/Raw/jrn_lizard_npp.csv'))
+```
+
+## Step 2 - Examine data and possible correlations
+```{r examine}
+#create histograms
+ggplot(lizard_counts, aes(x = lizard_count)) +
+geom_histogram(color = 'black')
+
+ggplot(lizard_counts, aes(x = season)) +
+geom_bar()
+
+ggplot(lizard_counts, aes(x = BOER)) +
+geom_histogram(color = 'black')
+
+ggplot(lizard_counts, aes(x = LATR)) +
+geom_histogram(color = 'black')
+
+ggplot(lizard_counts, aes(x = PRGL)) +
+geom_histogram(color = 'black')
+
+ggplot(lizard_counts, aes(x = SCBR)) +
+geom_histogram(color = 'black')
+
+#Create scatter plots
+ggplot(lizard_counts, aes(x = season, y = lizard_count)) +
+geom_point(color = 'black')
+
+ggplot(lizard_counts, aes(x = BOER, y = lizard_count)) +
+geom_point(color = 'black')
+
+ggplot(lizard_counts, aes(x = LATR, y = lizard_count)) +
+geom_point(color = 'black')
+
+ggplot(lizard_counts, aes(x = PRGL, y = lizard_count)) +
+geom_point(color = 'black')
+
+ggplot(lizard_counts, aes(x = SCBR, y = lizard_count)) +
+geom_point(color = 'black')
+```
+
+## Step 3 - Fit regression model
+```{r Poisson}
+#transform characters to factors
+lizard_counts$season <- factor(lizard_counts$season,
+                                 levels = c('W', 'S', 'F'))
+
+#fit poisson regression model
+lizard_mod <- glm(lizard_count ~ season + BOER + LATR + PRGL,
+                  data = lizard_counts,
+                  family = 'poisson')
+```
+
+## Step 4 - Evaluate model diagnostics
+```{r eval}
+#examine model output
+summary(lizard_mod)
+
+#examine model residuals
+plot(lizard_mod)
+
+```
+
+## Step 5 - Interpret the model and communicate the results
+The results of a poisson regression suggest that summer (B = -1.01, p < 0.001) and fall (B = -0.30, p <0.001) have significantly lower side-blotched lizard counts relative to winter. Also lizard counts were found to be significantly greater as percent cover of black grama grass (B = 0.08, p < 0.001) and honey mesquite (B = 0.37, p < 0.001) increase, and percent cover of creosote bush decreases (B = -0.59, p < 0.001).
+
+# (3) GitHub customization
+
+https://github.com/srheschong
+
+
+
