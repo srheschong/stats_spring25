@@ -1,0 +1,194 @@
+---
+title: "Lab 11"
+author: "Summer Heschong"
+date: "2025-04-02"
+output: pdf_document
+---
+# Setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(lubridate)
+library(nlme)
+library(gtsummary)
+library(parameters)
+
+#load data
+cocos <- read.csv(here('Data/Raw/palmyra_cocos.csv'))
+```
+
+# Factors
+```{r factors}
+#examine data structure
+str(cocos)
+
+#make all text columns into factors while specifying group order
+cocos <- cocos %>%
+  mutate(Type = factor(Type, levels = c('Mono', 'Mixed')),
+         Rats = factor(Rats, levels = c('pre', 'post')),
+         Plot = factor(Plot, levels = c('Eastern', 'Holei 1', 'Kaula',
+                                        'Papala', 'Paradise', 'Sand',
+                                        'Holei 2')))
+
+```
+
+# Multi-level Regresssion
+## Random Intercepts
+### Step 1- Define Research Question
+Do annual precipitation, forest type, and eradication treatment significantly predict percent cover of coconut tree seedlings? 
+
+### Step 2 - Examine data and possible correlations
+```{r display}
+#show distributions of raw data
+ggplot(cocos, aes(x = Ppt)) +
+  geom_histogram(color = 'black')
+
+ggplot(cocos, aes(x = Type)) +
+  geom_bar()
+
+ggplot(cocos, aes(x = Rats)) +
+  geom_bar()
+
+ggplot(cocos, aes(x = perc_CN)) +
+  geom_histogram(color = 'black')
+
+#show distributions of predictor variables over random effect variable
+ggplot(cocos, aes(x = Plot, y = Ppt)) +
+  geom_boxplot()
+
+ggplot(cocos, aes(x = Plot, y = Type)) +
+  geom_col(position = 'dodge') 
+
+ggplot(cocos, aes(x = Plot, y = Rats)) +
+  geom_col(position = 'dodge', color = 'black') 
+
+#show relationships between values
+ggplot(cocos, aes(x = Ppt, y = perc_CN)) +
+  geom_point()
+
+ggplot(cocos, aes(x = Type, y = perc_CN)) +
+  geom_point()
+
+ggplot(cocos, aes(x = Rats, y = perc_CN)) +
+  geom_point()
+```
+
+### Step 3 - Fit linear regresion model and evaluate model diagnostics
+```{r lrm}
+#fit linear regression model
+cocos.lm1 <- lm(perc_CN ~ Ppt + Type + Rats, data = cocos)
+
+#examine results
+summary(cocos.lm1)
+plot(cocos.lm1)
+```
+
+### Step 4 - Fit linear regression model with random effect and evaluate diagnostics
+```{r multilevel}
+# refit standard linear regression with gls
+cocos.lm2 <- gls(perc_CN ~ Ppt + Type + Rats, data = cocos)
+
+#fit a multi-level model
+cocos.lmm1 <- lme(perc_CN ~ Ppt + Type + Rats, 
+                  random = ~ 1|Plot, data = cocos)
+
+#compare the two models
+AIC(cocos.lm2, cocos.lmm1)
+
+#examine model rsutls
+plot(cocos.lmm1)
+qqnorm(cocos.lmm1)
+summary(cocos.lmm1)
+
+```
+
+### Step 5 - Communicate methods and results
+a. describe model
+b. plot results
+```{r results}
+#sample report visualizatioin
+fig1 <- ggplot(cocos, aes(x = Rats, y = perc_CN)) +
+  geom_boxplot(width = 0.2) +
+  geom_jitter(aes(color = Plot), size = 3, width = 0.10) +
+  labs(x = 'Rat Eradication Status',
+       y = 'Percent C. nucifera Seedlings') +
+  theme_bw()
+
+fig1
+
+#output results as table
+tbl_regression(cocos.lmm1)
+
+```
+
+## Nested Random Intercepts
+### Skipping to Step 4 - Fit multilevel model
+```{r nested}
+# first add location column
+cocos <- cocos %>%
+  mutate(Side = factor(case_when(Plot %in% c("Eastern",
+                                             'Holei 1',
+                                             'Holei 2') ~ 'East',
+                                                   TRUE ~ 'West'),
+                       levels = c('East', 'West'))) 
+
+#fit model (when nesting the larger grouping should be above the smaller)
+cocos.lmm2 <- lme(perc_CN ~ Ppt + Type + Rats, 
+                  random = ~ 1 | Side / Plot, data = cocos)
+
+#compare to standard regression
+AIC(cocos.lm2, cocos.lmm2)
+
+#Examine results
+plot(cocos.lmm2)
+qqnorm(cocos.lmm2)
+summary(cocos.lmm2)
+```
+
+## Random Slopes
+### Start from Step 4 - fit multi level model 
+```{r slopes}
+# fit a multi level model 
+cocos.lmm3 <- lme(perc_CN ~ Ppt + Type + Rats, 
+                  random = ~ 1 + Ppt| Plot, data = cocos)
+
+#compare to standard model
+AIC(cocos.lm2, cocos.lmm3)
+
+# Examine results
+plot(cocos.lmm3)
+qqnorm(cocos.lmm3)
+summary(cocos.lmm3)
+
+#examine what slopes and intercepts look liker per plot
+coef(cocos.lmm3)
+
+#save each plots equation including the average line
+eqAvg <- function(x){0.1170558 + -0.19002*x}
+eqEastern <- function (x){ 0.8311340 + -8.654819e-06 *x}
+eqHolei1 <- function(x){0.6414776 + 2.907469e-06*x}
+eqKaula <- function(x){0.5897089 + -8.956022e-06*x}
+eqPapala <- function(x){0.9229401+ -2.291900e-05*x}
+eqParadise <- function(x){0.9562606 +-3.197096e-05*x}
+eqSand <- function(x){0.7360257 +-2.158791e-05*x}
+eqHolei2 <- function(x){0.5740899 +-5.450407e-05*x}
+
+#plot them together
+fig2 <- ggplot(cocos, aes(x = Ppt,
+                          y = perc_CN)) +
+  geom_point(aes(color = Plot), size = 3)+ 
+  labs(x = 'Cumulative Annual Precip(mm)',
+       y = 'Percent C. nucifera Seedlings') +
+  stat_function(fun = eqEastern, color = 'black') +
+   stat_function(fun = eqHolei1, color = 'blue') +
+   stat_function(fun = eqKaula, color = 'red') +
+   stat_function(fun = eqPapala, color = 'yellow') +
+   stat_function(fun = eqParadise, color = 'orange') +
+   stat_function(fun = eqSand, color = 'green') +
+   stat_function(fun = eqHolei2, color = 'purple') +
+   stat_function(fun = eqAvg, color = 'maroon') +
+  theme_bw()
+fig2
+```
+
+

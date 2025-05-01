@@ -1,0 +1,107 @@
+---
+title: "FE Final"
+author: "Summer Heschong"
+date: "2025-05-01"
+output: pdf_document
+---
+#Setup
+```{r setup}
+library(here)
+library(tidyverse)
+library(naniar)
+library(DHARMa)
+library(gtsummary)
+library(broom)
+library(dplyr)
+library(nlme)
+
+data <- read.csv(here('Data/Raw/FEFinal.csv'))
+```
+
+#Cleaning
+```{r clean}
+
+reshaped_data <- data %>%
+  pivot_longer(
+    cols = starts_with("Median.Water.Level") | starts_with("Rainfall") | starts_with("Potential.ET"),
+    names_to = c("Variable"),
+    values_to = "Value"
+  ) 
+
+gauge_ids <- c("3BS1_GW2", "3BS1W1", "SRS1", "G-3576", "NESRS2", "NESRS3")
+
+# Repeat this vector to match the total number of rows (134406)
+n_rows <- 134406
+repeated_gauge_ids <- rep(gauge_ids, length.out = n_rows)
+
+# Assuming your dataset is called 'data', add this new Gauge ID column
+reshaped_data$GaugeID <- repeated_gauge_ids 
+
+reshaped_data <- reshaped_data %>%
+  select(Date, GaugeID, Variable, Value)
+
+reshaped_data$Date <- as.Date(reshaped_data$Date, format="%m/%d/%y")  # Adjust the format if needed
+
+# Create a new column 'Period' to classify before or after 2013
+reshaped_data$Period <- ifelse(reshaped_data$Date < as.Date("2013-01-01"), "Before", "After")
+
+reshaped_data <- reshaped_data %>%
+  mutate(Variable = case_when(
+    str_detect(Variable, "Median.Water.Level") ~ "Median.Water.Level",
+    str_detect(Variable, "Potential.ET") ~ "Potential.ET",
+    str_detect(Variable, "Rainfall") ~ "Rainfall",
+    TRUE ~ Variable  # Keep other values in the Variable column as they are
+  ))
+
+good <- reshaped_data %>%
+  pivot_wider(
+    names_from = "Variable",  # This will create a column for each unique variable
+    values_from = "Value"     # This specifies that the values should come from the 'Value' column
+  )
+
+```
+#Stats
+```{r stat}
+upstream <- good %>%
+  filter(GaugeID %in% c("3BS1_GW2", "3BS1W1", "SRS1"))
+
+upstream$Period <- factor(upstream$Period, levels = c("Before", "After"))
+
+downstream <- good %>%
+  filter(GaugeID %in% c("G-3576", "NESRS2", "NESRS3"))
+
+downstream$Period <- factor(downstream$Period, levels = c("Before", "After"))
+
+model <- lme(Median.Water.Level ~ Period + Rainfall,
+             random = ~1 | GaugeID, data = upstream)
+
+summary(model)
+
+model2 <- lme(Median.Water.Level ~ Period + Rainfall,
+             random = ~1 | GaugeID, data = downstream)
+
+
+summary(model2)
+r.squaredGLMM(model2)
+
+Before <- good %>%
+  filter(Period == "Before")
+After <- good %>%
+  filter(Period == "After")
+
+t.test(Before$Median.Water.Level,
+                          After$Median.Water.Level)
+
+good$Location <- ifelse(good$GaugeID %in% c("3BS1_GW2", "3BS1W1", "SRS1"),
+                             "Upstream",
+                             "Downstream")
+good$Location <- factor(good$Location, levels = c("Upstream", "Downstream"))
+
+good$Period <- factor(good$Period, levels = c("Before", "After"))
+
+# Run the ANOVA
+anova_result <- aov(Median.Water.Level ~ Period * Location, data = good)
+summary(anova_result)
+
+TukeyHSD(anova_result)
+```
